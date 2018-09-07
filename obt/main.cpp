@@ -105,14 +105,24 @@ void obt(char outputType, bool colorMode, bool process) {
 	// Get processed mat pointer
 	Mat(Obt::*processed)();
 	//if (process) {
-	//	source = &Obt::getColorMat;
+	//	processed = &Obt::process;
 	//} else {
-	//	processed = &Obt::getDepthMat;
+	//	processed = source;
 	//}
 
 	processed = source;
 
-	obt.streamMat(processed);
+	switch (outputType) {
+	case 's':
+		obt.stream(processed);
+		break;
+	case 'b':
+		obt.saveBackground(processed);
+		break;
+	default:
+		cout << "wat" << endl;
+		break;
+	}
 }
 
 void signalHandler(int signum) {

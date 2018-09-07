@@ -27,320 +27,26 @@ template<class Interface> inline void SafeRelease(Interface *& pInterfaceToRelea
 	}
 }
 
-// ======= KINECT BAK ========
-KinectBAK::KinectBAK()
-{
-	pKinect = NULL;
-	pReader = NULL;
-
-	//rgbBuf = new unsigned char[1920 * 1080 * 4];
-
-	//if (!initKinect()) {
-	//	cout << "Default kinect was either not found or doesn't return depth stream" << endl;
-	//}
-}
-
-KinectBAK::~KinectBAK() {
-	//if (pRGBXBuff) {
-	//	delete[] pRGBXBuff;
-	//	pRGBXBuff = NULL;
-	//}
-
-	//SafeRelease(pDepthFrameReader);
-
-	if (pKinect) {
-		pKinect->Close();
-	}
-	SafeRelease(pKinect);
-}
-
-/**
- * Find and init the default kinect sensor.
- *
- * returns: true iff a default kinect was found and it returns a depth stream
- * throws: runtime_error
- */
-bool KinectBAK::initKinect() {
-	HRESULT res = GetDefaultKinectSensor(&pKinect);
-	if (FAILED(res))
-		throw new runtime_error("Error searching for active kinects: " + to_string(res));
-
-	if (!pKinect)
-		return false; // No kinect found
-
-	BOOLEAN available;
-	res = pKinect->get_IsAvailable(&available);
-	if (FAILED(res))
-		throw new runtime_error("Error getting kinect availability: " + to_string(res));
-	if (available != 0)
-		return false;
-
-	res = pKinect->Open();
-	if (FAILED(res))
-		throw new runtime_error("Error opening kinect: " + to_string(res));
-
-	res = pKinect->OpenMultiSourceFrameReader(FrameSourceTypes::FrameSourceTypes_Color, &pReader);
-	if (FAILED(res))
-		throw new runtime_error("Error opening kinect frame reader: " + to_string(res));
-
-	if (!updateFrame(5000))
-		return false;
-
-	return true; // Kinect found and init complete
-}
-
-bool KinectBAK::updateFrame(unsigned long timeout) {
-	if (pReader == nullptr)
-		throw new NoReaderException();
-
-	chrono::time_point<Time> tStart = Time::now();
-	while (toMs(Time::now() - tStart) < timeout) {
-		HRESULT res = pReader->AcquireLatestFrame(&pFrame);
-		if (res == 0) { // Frame
-			return true;
-		}
-		else if (res == -2147483638) { // No frame?
-			pFrame = nullptr;
-			continue;
-		}
-		else { // Error
-			throw new runtime_error("Error updating frame: " + to_string(res));
-		}
-	}
-
-	return false; // Timeout elapased
-}
-
-//throw new runtime_error("Error getting kinect frame: " + to_string(res));
-
-//IFrameDescription* pFrameDescription = NULL;
-//int nWidth = 0;
-//int nHeight = 0;
-//USHORT nDepthMinReliableDistance = 0;
-//USHORT nDepthMaxDistance = 0;
-//UINT nBufferSize = 0;
-//UINT16 *pBuffer = NULL;
-
-//HRESULT hr = pDepthFrame->get_FrameDescription(&pFrameDescription);
-
-//if (SUCCEEDED(hr))
-//{
-//	hr = pFrameDescription->get_Width(&nWidth);
-//}
-
-//if (SUCCEEDED(hr))
-//{
-//	hr = pFrameDescription->get_Height(&nHeight);
-//}
-
-//if (SUCCEEDED(hr))
-//{
-//	hr = pDepthFrame->get_DepthMinReliableDistance(&nDepthMinReliableDistance);
-//}
-
-//if (SUCCEEDED(hr))
-//{
-//	// In order to see the full range of depth (including the less reliable far field depth)
-//	// we are setting nDepthMaxDistance to the extreme potential depth threshold
-//	nDepthMaxDistance = USHRT_MAX;
-
-//	// Note:  If you wish to filter by reliable depth distance, uncomment the following line.
-//	//// hr = pDepthFrame->get_DepthMaxReliableDistance(&nDepthMaxDistance);
-//}
-
-//if (SUCCEEDED(hr))
-//{
-//	hr = pDepthFrame->AccessUnderlyingBuffer(&nBufferSize, &pBuffer);
-//}
-
-//if (SUCCEEDED(hr))
-//{
-//	toRGBX(pBuffer, nWidth, nHeight, nDepthMinReliableDistance, nDepthMaxDistance);
-//}
-
-//SafeRelease(pFrameDescription);
-
-//SafeRelease(pFrame);
-
-//return false;
-
-Mat KinectBAK::getColorMat() {
-	unsigned char* buf;
-
-	try {
-		buf = getRgbBuf();
-	} catch (NoFrameException) {
-		throw;
-	}
-
-	Mat colorImg = getRgbMat(buf);
-
-	Rect frame(Point(400, 240), Point(1710, 850));
-	Mat cropped = colorImg(frame);
-
-	return cropped;
-}
-
-Mat KinectBAK::getRgbMat(unsigned char* buf) {
-	Mat colorImg = Mat();
-
-	colorImg.create(1080, 1920, CV_8UC1);
-	//memcpy(colorImg->ptr<uchar>(0), buf, 1920 * 1080 * 4);
-
-	uchar* matPtr = colorImg.ptr<uchar>(0);
-	int i = 0;
-	while (i < 1920 * 1080 * 4) {
-		*matPtr = (buf[i++] + buf[i++]) / 2;
-		matPtr++;
-		i++;
-		i++;
-	}
-
-	return colorImg;
-}
-
-unsigned char* KinectBAK::getRgbBuf() {
-	if (pFrame == nullptr) {
-		cout << "Null" << endl;
-		throw new NoFrameException();
-	}
-
-	IColorFrame* colorframe;
-	IColorFrameReference* frameref = nullptr;
-	HRESULT res = pFrame->get_ColorFrameReference(&frameref);
-	if (FAILED(res)) throw NoFrameException();
-	res = frameref->AcquireFrame(&colorframe);
-	if (FAILED(res)) throw NoFrameException();
-	if (frameref) frameref->Release();
-
-	colorframe->CopyConvertedFrameDataToArray(1920 * 1080 * 4, rgbBuf, ColorImageFormat_Rgba);
-
-	SafeRelease(colorframe);
-	SafeRelease(pFrame);
-
-	return rgbBuf;
-}
-
-//unsigned char* KinectWrapper::getRgbFrameBuf() {
-//	if (pFrame == nullptr) {
-//		cout << "Null" << endl;
-//		throw new NoFrameException();
-//	}
-//
-//	IColorFrame* colorframe;
-//	IColorFrameReference* frameref = nullptr;
-//	HRESULT res = pFrame->get_ColorFrameReference(&frameref);
-//	if (FAILED(res)) throw runtime_error("");
-//	res = frameref->AcquireFrame(&colorframe);
-//	if (FAILED(res)) throw NoFrameException();
-//	if (frameref) frameref->Release();
-//
-//	colorframe->CopyConvertedFrameDataToArray(1920 * 1080 * 4, rgbBuf, ColorImageFormat_Rgba);
-//
-//	SafeRelease(colorframe);
-//	SafeRelease(pFrame);
-//
-//	return rgbBuf;
-//}
-
-void KinectBAK::toRGBX(const UINT16* pBuffer, int nWidth, int nHeight, USHORT nMinDepth, USHORT nMaxDepth) {
-	USHORT rangeMin = 600;
-	USHORT rangeDelta = 255;
-
-	if (!(pBuffer && (nWidth == cDepthWidth) && (nHeight == cDepthHeight)))
-		throw new runtime_error("Invalid kinect data");
-
-	// Allocate grayscale buffer
-	Mat grayscale = Mat();
-	grayscale.create(nHeight, nWidth, CV_8U);
-
-	// end pixel is start + width*height - 1
-	const UINT16* pBufferEnd = pBuffer + (nWidth * nHeight);
-
-	int i;
-	uchar* p;
-	p = grayscale.ptr<uchar>(0);
-	for (i = 0; i < nWidth * nHeight; ++i) {
-		UINT16 depth = *pBuffer++;
-		depth -= rangeMin;
-		uchar intensity = static_cast<uchar>((depth >= 0) && (depth <= rangeDelta) ? depth : 0);
-		p[i] = intensity;
-	}
-
-	//while (pBuffer < pBufferEnd) {
-	//	USHORT depth = *pBuffer;
-
-	//	// To convert to a byte, we're discarding the most-significant
-	//	// rather than least-significant bits.
-	//	// We're preserving detail, although the intensity will "wrap."
-	//	// Values outside the reliable depth range are mapped to 0 (black).
-
-	//	// Note: Using conditionals in this loop could degrade performance.
-	//	// Consider using a lookup table instead when writing production code.
-	//	depth -= rangeMin;
-	//	BYTE intensity = static_cast<BYTE>((depth >= 0) && (depth <= rangeDelta) ? depth : 0);
-
-	//	pRGBX->rgbRed = intensity;
-	//	pRGBX->rgbGreen = intensity;
-	//	pRGBX->rgbBlue = intensity;
-
-	//	++pRGBX;
-	//	++pBuffer;
-	//}
-
-	// Draw the data with OpenCV
-	//Mat DepthImage(nHeight, nWidth, CV_8UC4, pRGBXBuff);
-	//return DepthImage;
-	Mat show = grayscale.clone();
-	imshow("DepthImage", show);
-}
-// Kinect BAK ===========
-
-
-
-
-
 Obt::Obt() {
 }
 
-void Obt::streamBAK() {
-	chrono::time_point<Time> tStart = Time::now();
-	while (true) {
-		if (waitKey(1) >= 0) break;
+Mat Obt::process(Mat(Obt::*matSource)()) {
+	Mat source = (this->*matSource)();
+	Mat bg = imread("./bg.bmp", IMREAD_GRAYSCALE);
 
-		chrono::time_point<Time> tFrameStart = Time::now();
+	Mat subtracted = Mat();
+	cv::subtract(bg, source, subtracted);
 
-		kinectBAK.updateFrame(frameUpdateTimeout);
-		
-		Mat colorImg;
-		try {
-			colorImg = kinectBAK.getColorMat();
-		} catch (NoFrameException) {
-			continue;
-		}
-		
-		imshow("DepthImage", colorImg);
-
-		chrono::time_point<Time> tFrameEnd = Time::now();
-
-		cout << toMs(tFrameEnd - tFrameStart) << "    " << '\r' << flush;
-	}
+	return subtracted;
 }
 
-void Obt::streamMat(Mat(Obt::*matSource)()) {
+void Obt::stream(Mat(Obt::*matSource)()) {
 	chrono::time_point<Time> tStart = Time::now();
 	while (true) {
 		if (waitKey(1) >= 0) break;
 
 		chrono::time_point<Time> tFrameStart = Time::now();
 
-		kinect.updateMultiFrame(frameUpdateTimeout);
-		//if (!updated) {
-		//	cout << "Skipping frame" << endl;
-		//	continue;
-		//}
-
-		// Get frame
 		Mat toShow;
 		try {
 			toShow = (this->*matSource)();
@@ -357,20 +63,33 @@ void Obt::streamMat(Mat(Obt::*matSource)()) {
 	}
 }
 
+void Obt::saveBackground(Mat(Obt::*matSource)()) {
+	Mat toSave = (this->*matSource)();
+	imwrite("./bg.bmp", toSave);
+}
 
-Mat Obt::colorBufToGrayscaleMat(unsigned char* buf) {
-	Mat mat = *new Mat();
-	mat.create(1080, 1920, CV_8UC1);
-	uchar* matPtr = mat.ptr<uchar>(0);
+unsigned char byteClamp(int a) {
+	return a < 0 ? 0 : a > 255 ? 255 : a;
+}
 
-	for (int i = 0; i < 1920 * 1080 * 4;) {
-		*matPtr = (buf[i++] + buf[i++]) / 2; // average g & b
-		matPtr++;
-		i++;
-		i++;
-	}
 
-	return mat;
+Mat Obt::colorFrameBufToGrayscaleMat(unsigned char* buf) {
+	Mat yuv(1080, 1920, CV_8UC2, buf); // YUV color space
+
+	Mat bgr = Mat();
+	bgr.create(1080, 1920, CV_8UC3);
+
+	cvtColor(yuv, bgr, CV_YUV2BGR_YUYV);
+
+	Mat channels[3];
+	split(bgr, channels);
+	channels[1] = Mat::zeros(1080, 1920, CV_8UC1);
+	merge(channels, 3, bgr);
+
+	Mat gray = Mat();
+	cvtColor(bgr, gray, CV_BGR2GRAY);
+
+	return gray;
 }
 
 Mat Obt::depthBufToGrayscaleMat(unsigned short* buf) {
@@ -379,49 +98,49 @@ Mat Obt::depthBufToGrayscaleMat(unsigned short* buf) {
 
 	Mat mat = *new Mat();
 	mat.create(424, 512, CV_8U);
-	uchar* matPtr = mat.ptr<uchar>(0);
+	unsigned char* matPtr = mat.ptr<unsigned char>(0);
 
 	for (int i = 0; i < 512 * 424; i++) {
 		unsigned short depth = *buf++;
-		uchar intensity = static_cast<uchar>((depth >= rangeMin) && (depth < rangeMin + rangeDelta) ? depth - rangeMin : 0);
+		unsigned char intensity = (depth >= rangeMin) && (depth < rangeMin + rangeDelta) ? depth - rangeMin : 0;
 		matPtr[i] = intensity;
 	}
 
 	return mat;
 }
 
-void Obt::stream() {
-	if (!kinect.initKinect())
-		throw new NoKinectException();
-
-	chrono::time_point<Time> tStart = Time::now();
-	while (true) {
-		if (waitKey(1) >= 0) {
-			break;
-		}
-
-		chrono::time_point<Time> tFrameStart = Time::now();
-
-		unsigned char* rgbFrameBuf;
-		bool updated = kinect.updateMultiFrame(frameUpdateTimeout);
-		//if (!updated) {
-		//	cout << "Skipping frame" << endl;
-		//	continue;
-		//}
-
-		rgbFrameBuf = kinect.getRgbFrameBuf();
-
-		Mat gs = colorBufToGrayscaleMat(rgbFrameBuf);
-
-		Rect frame(Point(400, 240), Point(1710, 850));
-		Mat cropped = gs(frame);
-		imshow("Test Stream", cropped);
-
-		chrono::time_point<Time> tFrameEnd = Time::now();
-
-		cout << toMs(tFrameEnd - tFrameStart) << "    " << '\r' << flush;
-	}
-}
+//void Obt::stream() {
+//	if (!kinect.initKinect())
+//		throw new NoKinectException();
+//
+//	chrono::time_point<Time> tStart = Time::now();
+//	while (true) {
+//		if (waitKey(1) >= 0) {
+//			break;
+//		}
+//
+//		chrono::time_point<Time> tFrameStart = Time::now();
+//
+//		unsigned char* rgbFrameBuf;
+//		bool updated = kinect.updateMultiFrame(frameUpdateTimeout);
+//		//if (!updated) {
+//		//	cout << "Skipping frame" << endl;
+//		//	continue;
+//		//}
+//
+//		rgbFrameBuf = kinect.getColorFrameBuf();
+//
+//		Mat gs = colorFrameBufToGrayscaleMat(rgbFrameBuf);
+//
+//		Rect frame(Point(400, 240), Point(1710, 850));
+//		Mat cropped = gs(frame);
+//		imshow("Test Stream", cropped);
+//
+//		chrono::time_point<Time> tFrameEnd = Time::now();
+//
+//		cout << toMs(tFrameEnd - tFrameStart) << "    " << '\r' << flush;
+//	}
+//}
 
 
 Mat Obt::getDepthMat() {
@@ -431,9 +150,11 @@ Mat Obt::getDepthMat() {
 	//	return false;
 	//}
 
-	Mat depthMat = depthBufToGrayscaleMat(kinect.getDepthFrameBuf());
+	unsigned short* depthFrameBuf = kinect.getDepthFrameBuf();
 
-	Rect frame(Point(400, 240), Point(1710, 850));
+	Mat depthMat = depthBufToGrayscaleMat(depthFrameBuf);
+
+	Rect frame(Point(35, 100), Point(485, 310)); // 512 * 424
 	Mat cropped = depthMat(frame);
 
 	return cropped;
@@ -442,13 +163,13 @@ Mat Obt::getDepthMat() {
 Mat Obt::getColorMat() {
 	unsigned char* buf;
 	try {
-		buf = kinect.getRgbFrameBuf();
+		buf = kinect.getColorFrameBuf();
 	}
 	catch (NoFrameException) {
 		cout << "no frame" << endl;
 		throw;
 	}
-	Mat colorMat = colorBufToGrayscaleMat(buf);
+	Mat colorMat = colorFrameBufToGrayscaleMat(buf);
 
 	Rect frame(Point(400, 240), Point(1710, 850));
 	Mat cropped = colorMat(frame);
@@ -456,27 +177,27 @@ Mat Obt::getColorMat() {
 	return cropped;
 }
 
-void Obt::depth() {
-	if (!kinect.initKinect()) {
-		cout << "Default kinect was either not found or doesn't return depth stream" << endl;
-		return;
-	}
+//void Obt::depth() {
+//	if (!kinect.initKinect()) {
+//		cout << "Default kinect was either not found or doesn't return depth stream" << endl;
+//		return;
+//	}
+//
+//	this->streamMat(&Obt::getDepthMat);
+//}
 
-	this->streamMat(&Obt::getDepthMat);
-}
-
-void Obt::background() {
-	if (!kinect.initKinect()) {
-		cout << "Default kinect was either not found or doesn't return depth stream" << endl;
-		return;
-	}
-
-	kinect.updateMultiFrame(frameUpdateTimeout);
-	Mat gs = colorBufToGrayscaleMat(kinect.getRgbFrameBuf());
-	Rect frame(Point(400, 240), Point(1710, 850));
-	Mat cropped = gs(frame);
-	imwrite("./bg.bmp", cropped);
-}
+//void Obt::background() {
+//	if (!kinect.initKinect()) {
+//		cout << "Default kinect was either not found or doesn't return depth stream" << endl;
+//		return;
+//	}
+//
+//	kinect.updateMultiFrame(frameUpdateTimeout);
+//	Mat gs = colorFrameBufToGrayscaleMat(kinect.getColorFrameBuf());
+//	Rect frame(Point(400, 240), Point(1710, 850));
+//	Mat cropped = gs(frame);
+//	imwrite("./bg.bmp", cropped);
+//}
 
 void Obt::subtract() {
 	if (!kinect.initKinect()) {
@@ -499,13 +220,13 @@ void Obt::subtract() {
 		unsigned char* rgbFrameBuf;
 		kinect.updateMultiFrame(frameUpdateTimeout);
 		try {
-			rgbFrameBuf = kinect.getRgbFrameBuf();
+			rgbFrameBuf = kinect.getColorFrameBuf();
 		}
 		catch (runtime_error) {
 			continue;
 		}
 
-		Mat gs = colorBufToGrayscaleMat(rgbFrameBuf);
+		Mat gs = colorFrameBufToGrayscaleMat(rgbFrameBuf);
 
 		Rect frame(Point(400, 240), Point(1710, 850));
 		Mat cropped = gs(frame);

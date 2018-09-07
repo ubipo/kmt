@@ -11,6 +11,7 @@
 #include <iostream>
 #include <string>
 #include <chrono>
+#include <bitset>
 using namespace std;
 
 // OpenCV
@@ -28,8 +29,6 @@ KinectWrapper::KinectWrapper() {
 	pKinect = NULL;
 	pReader = NULL;
 	
-	rgbBuf = new unsigned char[1920 * 1080 * 4];
-
 	if (!initKinect()) {
 		cout << "Default kinect was either not found or doesn't return depth stream" << endl;
 	}
@@ -112,13 +111,20 @@ bool KinectWrapper::updateMultiFrame(unsigned long timeout) {
 
 	return false; // Timeout elapased
 }
-
-unsigned char* KinectWrapper::getRgbFrameBuf() {
+unsigned char* KinectWrapper::getColorFrameBuf() {
+	// Check if frame was captured
 	if (pFrame == nullptr) {
-		cout << "Null" << endl;
-		throw new NoFrameException();
+		updateMultiFrame(frameUpdateTimeout);
 	}
 
+	unsigned int size = 1920 * 1080 * 2; // w * h * channels
+
+	// Check if frame buffer is allocated
+	if (colorBuf == nullptr) {
+		colorBuf = new unsigned char[size];
+	}
+
+	// Acquire color frame
 	IColorFrame* colorframe;
 	IColorFrameReference* frameref = nullptr;
 	HRESULT res = pFrame->get_ColorFrameReference(&frameref);
@@ -127,17 +133,34 @@ unsigned char* KinectWrapper::getRgbFrameBuf() {
 	if (FAILED(res)) throw NoFrameException();
 	if (frameref) frameref->Release();
 
-	colorframe->CopyConvertedFrameDataToArray(1920 * 1080 * 4, rgbBuf, ColorImageFormat_Rgba);
+	// Get raw buffer pointer
+	unsigned int rawSize;
+	unsigned char* raw;
+	colorframe->AccessRawUnderlyingBuffer(&rawSize, &raw); // YUV color space
+
+	// Check raw buffer size
+	if (rawSize != size) throw runtime_error("");
+
+	// Copy
+	memcpy(colorBuf, raw, size);
+
 	SafeRelease(colorframe);
 	SafeRelease(pFrame);
 
-	return rgbBuf;
+	return colorBuf;
 }
 
 unsigned short* KinectWrapper::getDepthFrameBuf() {
+	// Check if frame was captured
 	if (pFrame == nullptr) {
-		cout << "Null" << endl;
-		throw new NoFrameException();
+		updateMultiFrame(frameUpdateTimeout);
+	}
+
+	unsigned int size = 512 * 424; // w * h
+
+	// Check if frame buffer is allocated
+	if (depthBuf == nullptr) {
+		depthBuf = new unsigned short[size];
 	}
 
 	IDepthFrame* depthframe;
@@ -148,12 +171,19 @@ unsigned short* KinectWrapper::getDepthFrameBuf() {
 	if (FAILED(res)) throw new runtime_error("");
 	if (frameref) frameref->Release();
 
-	unsigned int cap;
-	unsigned short* buf;
-	depthframe->AccessUnderlyingBuffer(&cap, &buf);
+	unsigned int rawSize;
+	unsigned short* raw;
+	depthframe->AccessUnderlyingBuffer(&rawSize, &raw);
+
+	// Check raw buffer size
+	if (rawSize != size) throw runtime_error("");
+
+	// Copy
+	memcpy(depthBuf, raw, size * sizeof(unsigned short));
+
 	SafeRelease(depthframe);
 
-	return buf;
+	return depthBuf;
 }
 
 void KinectWrapper::toRGBX(const UINT16* pBuffer, int nWidth, int nHeight, USHORT nMinDepth, USHORT nMaxDepth) {

@@ -16,7 +16,7 @@ public:
 	template<class Interface> inline void SafeRelease(Interface *& pInterfaceToRelease);
 	bool					initKinect();
 	bool					updateMultiFrame(unsigned long timeout);
-	unsigned char*			getRgbFrameBuf();
+	unsigned char*			getColorFrameBuf();
 	unsigned short*			getDepthFrameBuf();
 	void					toRGBX(const UINT16* pBuffer, int nWidth, int nHeight, USHORT nMinDepth, USHORT nMaxDepth);
 
@@ -25,5 +25,6 @@ private:
 	IKinectSensor*           pKinect;
 	IMultiSourceFrameReader* pReader;
 	IMultiSourceFrame*		 pFrame;
-	unsigned char*			 rgbBuf;
+	unsigned char*			 colorBuf;
+	unsigned short*			 depthBuf;
 };
