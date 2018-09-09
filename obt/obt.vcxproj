@@ -74,7 +74,7 @@
     <LibraryPath>C:\Program Files %28x86%29\Microsoft Visual Studio\2017\Community\VC\lib;C:\Program Files\Microsoft SDKs\Kinect\v2.0_1409\Lib\x86;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>C:\Users\farrowlab\source\repos\obt\obt\include;C:\Program Files\opencv\build\include;C:\Program Files\Microsoft SDKs\Kinect\v2.0_1409\inc;C:\Program Files %28x86%29\Microsoft Visual Studio\2017\Community\VC\include;$(IncludePath)</IncludePath>
+    <IncludePath>.\include;C:\Program Files\opencv\build\include;C:\Program Files\Microsoft SDKs\Kinect\v2.0_1409\inc;C:\Program Files %28x86%29\Microsoft Visual Studio\2017\Community\VC\include;$(IncludePath)</IncludePath>
     <LibraryPath>C:\Program Files\opencv\build\x64\vc15\lib;C:\Program Files %28x86%29\Microsoft Visual Studio\2017\Community\VC\lib\x64;C:\Program Files\Microsoft SDKs\Kinect\v2.0_1409\Lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">

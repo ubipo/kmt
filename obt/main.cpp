@@ -1,5 +1,4 @@
 
-
 // Std
 #include <iostream>
 #include <string>
@@ -32,6 +31,8 @@ using namespace cv;
 //#define width 512
 //#define height 424
 
+using byte = unsigned char;
+
 void signalHandler(int signum);
 void obt(char outputType, bool colorMode, bool process);
 
@@ -41,56 +42,70 @@ int main(int argc, char** argv) {
 	cxxopts::Options argParser("obt", "Open Behavioural Tracker");
 
 	argParser.add_options()
-		("h,help", "Print this message")
-		("o,output", "Output type - [S]tream, (F)ile or (B)ackground", cxxopts::value<char>()->default_value("s"))
+		("h,help", "Print this info")
 		("c,color", "Color mode, use kinect color camera instead of depth")
-		("p,process", "Process the output");
+		("r,raw", "Raw mode, don't process or output data")
+		("o,output", "Output mode(s): (S)tream (and\\or) (V)ideo", cxxopts::value<string>())
+		("f,filename", "Data file's name or path", cxxopts::value<string>()->default_value("data.csv"));
+
+	string helpStr = argParser.help({ "", "Group" });
 
 	// Args to parse
-	char outputType;
-	bool colorMode;
-	bool process;
+	bool colorMode, rawMode, streamOutput, videoOutput;
+	const char* dataFile;
 
 	try {
 		cxxopts::ParseResult args = argParser.parse(argc, argv);
 
 		// help
 		if (args.count("help")) {
-			cout << argParser.help({ "", "Group" }) << endl;
+			cout << helpStr << endl;
 			exit(0);
-		}
-
-		// output type
-		outputType = args["output"].as<char>();
-		char outputTypes[3] = { 's', 'f', 'b' };
-		char* selectedOutputType = find(begin(outputTypes), end(outputTypes), outputType);
-		if (selectedOutputType == end(outputTypes)) {
-			cout << "Unknown output type '" << outputType << "', selecting 's'" << endl;
-			outputType = 's';
 		}
 
 		// color mode
 		colorMode = bool(args.count("color"));
 
-		// process
-		process = bool(args.count("process"));
+		// raw mode
+		rawMode = bool(args.count("raw"));
+
+		// output mode(s)
+		streamOutput = videoOutput = false;
+		if (args.count("output")) {
+			string outputModesStr = args["output"].as<string>();
+			const char* outputModes = outputModesStr.c_str();
+			for (byte i = 0; i < outputModesStr.length(); i++) {
+				switch (tolower(outputModes[i])) {
+					case 's':
+						streamOutput = true; break;
+					case 'v':
+						videoOutput = true; break;
+				}
+			}
+		}
+
+		// data file
+		dataFile = args["filename"].as<string>().c_str();
+
+		//cout << colorMode << " " << rawMode << " " << streamOutput << " " << videoOutput << " " << dataFile << endl;
+		return 0;
 
 	} catch (exception& err) {
-		cout << "Exception parsing arguments: " << typeid(err).name() << endl;
+		cerr << "Exception parsing arguments: " << endl;
 		cerr << err.what() << endl << endl;
-		cout << argParser.help({ "", "Group" }) << endl;
+		cerr << helpStr << endl;
 		return 1;
 	} catch (...) {
-		cout << "Unknown error occured" << endl;
+		cerr << "Unknown error parsing arguments occured" << endl;
 		return 1;
 	}
 
-	obt(outputType, colorMode, process);
+	obt(colorMode, rawMode, streamOutput, videoOutput, dataFile);
 
 	return EXIT_SUCCESS;
 }
 
-void obt(char outputType, bool colorMode, bool process) {
+void obt(bool colorMode, bool rawMode, bool	streamOutput, bool videoOutput, const char* dataFile) {
 	// Init obt
 	Obt obt = Obt();
 

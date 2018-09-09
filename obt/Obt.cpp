@@ -17,8 +17,13 @@ using namespace std;
 #include <opencv2/opencv.hpp>
 using namespace cv;
 
+// Typedef
+using tByte = unsigned char; // Random prefix t to avoid conflict
+using tWord = unsigned short;
 using Time = chrono::steady_clock;
 using ms = chrono::milliseconds;
+using matSource = Mat(Obt::*)();
+using matOutput = void(Obt::*)(Mat(Obt::*)());
 
 template<class Interface> inline void SafeRelease(Interface *& pInterfaceToRelease) {
 	if (pInterfaceToRelease != NULL) {
@@ -68,12 +73,17 @@ void Obt::saveBackground(Mat(Obt::*matSource)()) {
 	imwrite("./bg.bmp", toSave);
 }
 
-unsigned char byteClamp(int a) {
+void Obt::output(matSource source, matOutput* out) {
+	Mat toSave = (this->*source)();
+	imwrite("./bg.bmp", toSave);
+}
+
+tByte byteClamp(int a) {
 	return a < 0 ? 0 : a > 255 ? 255 : a;
 }
 
 
-Mat Obt::colorFrameBufToGrayscaleMat(unsigned char* buf) {
+Mat Obt::colorFrameBufToGrayscaleMat(tByte* buf) {
 	Mat yuv(1080, 1920, CV_8UC2, buf); // YUV color space
 
 	Mat bgr = Mat();
@@ -92,17 +102,17 @@ Mat Obt::colorFrameBufToGrayscaleMat(unsigned char* buf) {
 	return gray;
 }
 
-Mat Obt::depthBufToGrayscaleMat(unsigned short* buf) {
+Mat Obt::depthBufToGrayscaleMat(tWord* buf) {
 	short rangeMin = 600;
 	short rangeDelta = 255;
 
 	Mat mat = *new Mat();
 	mat.create(424, 512, CV_8U);
-	unsigned char* matPtr = mat.ptr<unsigned char>(0);
+	tByte* matPtr = mat.ptr<tByte>(0);
 
 	for (int i = 0; i < 512 * 424; i++) {
-		unsigned short depth = *buf++;
-		unsigned char intensity = (depth >= rangeMin) && (depth < rangeMin + rangeDelta) ? depth - rangeMin : 0;
+		tWord depth = *buf++;
+		tByte intensity = (depth >= rangeMin) && (depth < rangeMin + rangeDelta) ? depth - rangeMin : 0;
 		matPtr[i] = intensity;
 	}
 
@@ -150,7 +160,7 @@ Mat Obt::getDepthMat() {
 	//	return false;
 	//}
 
-	unsigned short* depthFrameBuf = kinect.getDepthFrameBuf();
+	tWord* depthFrameBuf = kinect.getDepthFrameBuf();
 
 	Mat depthMat = depthBufToGrayscaleMat(depthFrameBuf);
 
@@ -161,7 +171,7 @@ Mat Obt::getDepthMat() {
 }
 
 Mat Obt::getColorMat() {
-	unsigned char* buf;
+	tByte* buf;
 	try {
 		buf = kinect.getColorFrameBuf();
 	}
@@ -217,7 +227,7 @@ void Obt::subtract() {
 
 		kinect.updateMultiFrame(frameUpdateTimeout);
 
-		unsigned char* rgbFrameBuf;
+		tByte* rgbFrameBuf;
 		kinect.updateMultiFrame(frameUpdateTimeout);
 		try {
 			rgbFrameBuf = kinect.getColorFrameBuf();
