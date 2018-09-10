@@ -25,17 +25,16 @@ struct processingOutput {
 class Obt {
 public:
 	Obt();
-	processingOutput process(Mat(Obt::* matSource)());
-	void stream(Mat(Obt::* matSource)());
-	void saveBackground(Mat(Obt::* matSource)());
-	void output(matSource source, matOutput* out);
+	processingOutput process(Mat frame, int blurSize, int thresholdValue);
 	Mat getDepthMat();
 	Mat getColorMat();
 	void subtract();
+	void setBg(Mat bg);
 
 private:
 	int frameUpdateTimeout = 5000;
 	KinectWrapper kinect;
 	Mat colorFrameBufToGrayscaleMat(tByte* buf);
 	Mat depthBufToGrayscaleMat(tWord* buf);
+	Mat bg;
 };

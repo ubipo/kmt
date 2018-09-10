@@ -35,53 +35,33 @@ template<class Interface> inline void SafeRelease(Interface *& pInterfaceToRelea
 Obt::Obt() {
 }
 
-Mat Obt::process(Mat(Obt::*matSource)()) {
-	Mat source = (this->*matSource)();
-	Mat bg = imread("./bg.bmp", IMREAD_GRAYSCALE);
+processingOutput Obt::process(Mat frame, int blurSize, int thresholdValue) {
+	Mat temp = Mat();
+	cv::subtract(frame, bg, temp);
 
-	Mat subtracted = Mat();
-	cv::subtract(bg, source, subtracted);
+	Mat smoothed = Mat();
+	blur(temp, frame, Size(blurSize, blurSize));
 
-	return subtracted;
+	Mat thresholded = Mat();
+	threshold(frame, temp, thresholdValue, 256, 0);
+
+	frame = temp;
+
+	processingOutput output;
+	output.frame = frame;
+	output.x = 0;
+	output.y = 0;
+
+	return output;
 }
 
-void Obt::stream(Mat(Obt::*matSource)()) {
-	chrono::time_point<Time> tStart = Time::now();
-	while (true) {
-		if (waitKey(1) >= 0) break;
-
-		chrono::time_point<Time> tFrameStart = Time::now();
-
-		Mat toShow;
-		try {
-			toShow = (this->*matSource)();
-		}
-		catch (NoFrameException ex) {
-			cout << "Skipping frame" << endl;
-			continue;
-		}
-
-		imshow("Depth Stream", toShow);
-
-		chrono::time_point<Time> tFrameEnd = Time::now();
-		cout << toMs(tFrameEnd - tFrameStart) << "    " << '\r' << flush;
-	}
-}
-
-void Obt::saveBackground(Mat(Obt::*matSource)()) {
-	Mat toSave = (this->*matSource)();
-	imwrite("./bg.bmp", toSave);
-}
-
-void Obt::output(matSource source, matOutput* out) {
-	Mat toSave = (this->*source)();
-	imwrite("./bg.bmp", toSave);
+void Obt::setBg(Mat _bg) {
+	bg = _bg;
 }
 
 tByte byteClamp(int a) {
 	return a < 0 ? 0 : a > 255 ? 255 : a;
 }
-
 
 Mat Obt::colorFrameBufToGrayscaleMat(tByte* buf) {
 	Mat yuv(1080, 1920, CV_8UC2, buf); // YUV color space
@@ -155,10 +135,10 @@ Mat Obt::depthBufToGrayscaleMat(tWord* buf) {
 
 Mat Obt::getDepthMat() {
 	bool updated = kinect.updateMultiFrame(frameUpdateTimeout);
-	//if (!updated) {
-	//	cout << "Skipping frame" << endl;
-	//	return false;
-	//}
+	if (!updated) {
+		cout << "Skipping frame" << endl;
+		exit(1);
+	}
 
 	tWord* depthFrameBuf = kinect.getDepthFrameBuf();
 

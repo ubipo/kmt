@@ -62,6 +62,8 @@ template<class Interface> inline void KinectWrapper::SafeRelease(Interface *& pI
  * throws: runtime_error
  */
 bool KinectWrapper::initKinect() {
+	cout << "Looking for default kinect..." << endl;
+
 	HRESULT res = GetDefaultKinectSensor(&pKinect);
 	if (FAILED(res))
 		throw new runtime_error("Error searching for active kinects: " + to_string(res));
@@ -86,6 +88,8 @@ bool KinectWrapper::initKinect() {
 
 	if (!updateMultiFrame(5000))
 		return false;
+
+	cout << "Kinect found!" << endl;
 
 	return true; // Kinect found and init complete
 }
@@ -166,9 +170,9 @@ unsigned short* KinectWrapper::getDepthFrameBuf() {
 	IDepthFrame* depthframe;
 	IDepthFrameReference* frameref = nullptr;
 	HRESULT res = pFrame->get_DepthFrameReference(&frameref);
-	if (FAILED(res)) throw new runtime_error("");
+	if (FAILED(res)) throw runtime_error("");
 	res = frameref->AcquireFrame(&depthframe);
-	if (FAILED(res)) throw new runtime_error("");
+	if (FAILED(res)) throw NoFrameException("");
 	if (frameref) frameref->Release();
 
 	unsigned int rawSize;
@@ -191,7 +195,7 @@ void KinectWrapper::toRGBX(const UINT16* pBuffer, int nWidth, int nHeight, USHOR
 	USHORT rangeDelta = 255;
 
 	if (!(pBuffer && (nWidth == cDepthWidth) && (nHeight == cDepthHeight)))
-		throw new runtime_error("Invalid kinect data");
+		throw runtime_error("Invalid kinect data");
 
 	// Allocate grayscale buffer
 	Mat grayscale = Mat();
