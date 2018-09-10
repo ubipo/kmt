@@ -37,9 +37,8 @@ Obt::Obt() {
 
 processingOutput Obt::process(Mat frame, int blurSize, int thresholdValue) {
 	Mat temp = Mat();
-	cv::subtract(frame, bg, temp);
+	cv::absdiff(frame, bg, temp);
 
-	Mat smoothed = Mat();
 	blur(temp, frame, Size(blurSize, blurSize));
 
 	Mat thresholded = Mat();
@@ -83,8 +82,8 @@ Mat Obt::colorFrameBufToGrayscaleMat(tByte* buf) {
 }
 
 Mat Obt::depthBufToGrayscaleMat(tWord* buf) {
-	short rangeMin = 600;
-	short rangeDelta = 255;
+	short rangeMin = 670;
+	short rangeDelta = 50;
 
 	Mat mat = *new Mat();
 	mat.create(424, 512, CV_8U);

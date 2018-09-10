@@ -50,7 +50,7 @@ int main(int argc, char** argv) {
 		("h,help", "Print this info")
 		("c,color", "Color mode, use kinect color camera instead of depth")
 		("r,raw", "Raw mode, don't process or output data")
-		("b,blur", "Blur size", cxxopts::value<int>()->default_value("15"))
+		("b,blur", "Blur size", cxxopts::value<int>()->default_value("20"))
 		("s,threshold", "Threshold value", cxxopts::value<int>()->default_value("30"))
 		("t,trigger", "Wait for trigger before starting capture")
 		("o,output", "Output mode(s): (S)tream (and\\or) (V)ideo", cxxopts::value<string>())
