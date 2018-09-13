@@ -1,7 +1,6 @@
 # kmt - Kinect Mouse Tracker
 
 Tool to track a mouse using Microsoft kinect
-
 depth or color streams and opencv image processing.
 
 ## Requirements
@@ -9,9 +8,11 @@ depth or color streams and opencv image processing.
 - Kinect SDK v2.0_1409
 
 ## Building
-Only the debug profile is set up correctly.
-To not use opencv debug, edit the release profile.
+This project was made using visual studio so
+there's no cmake list included.
+Only the visual studio debug profile is set up correctly.
+In order not to use opencv debug, edit the release profile accordingly.
 
 ## Things to note
 - Includes are still hardlinked, change to env variable or manually change when upgrading opencv or kinect SDK
-- Tests - No, Memory leaks and bugs - Yes
+- Tests - No | Memory leaks and bugs - Yes
