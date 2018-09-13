@@ -1,4 +1,4 @@
-
+// Kmt.h - Logic for Kinect Mouse Tracker
 #pragma once
 
 // Internal

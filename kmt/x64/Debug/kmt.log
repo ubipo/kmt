@@ -1,3 +1,9 @@
 ﻿C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\Common7\IDE\VC\VCTargets\Microsoft.CppBuild.targets(391,5): warning MSB8028: The intermediate directory (x64\Debug\) contains files shared from another project (kmt.vcxproj).  This can lead to incorrect clean and rebuild behavior.
+  KinectWrapper.cpp
+  KinectWrapperExceptions.cpp
+  main.cpp
   Kmt.cpp
-  kmt.vcxproj -> C:\Users\farrowlab\source\repos\kmt\x64\Debug\kmt.exe
+  Util.cpp
+  Generating Code...
+  LINK : C:\Users\Pieter\source\repos\kmt\x64\Debug\kmt.exe not found or not built by the last incremental link; performing full link
+  kmt.vcxproj -> C:\Users\Pieter\source\repos\kmt\x64\Debug\kmt.exe

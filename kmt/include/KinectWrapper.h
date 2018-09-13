@@ -7,6 +7,10 @@
 // Internal
 #include "KinectWrapperExceptions.h"
 
+// Typedef
+using tByte = unsigned char; // Random prefix t to avoid conflict
+using tWord = unsigned short;
+
 class KinectWrapper {
 public:
 	static const int        cDepthWidth = 512;
@@ -18,15 +22,14 @@ public:
 
 	bool					initKinect();
 	bool					updateMultiFrame(unsigned long timeout);
-	unsigned char*			getColorFrameBuf();
-	unsigned short*			getDepthFrameBuf();
-	void					toRGBX(const UINT16* pBuffer, int nWidth, int nHeight, USHORT nMinDepth, USHORT nMaxDepth);
+	tByte*					getColorFrameBuf();
+	tWord*			getDepthFrameBuf();
 
 private:
 
 	IKinectSensor*           pKinect;
 	IMultiSourceFrameReader* pReader;
 	IMultiSourceFrame*		 pFrame;
-	unsigned char*			 colorBuf;
-	unsigned short*			 depthBuf;
+	tByte*					 colorBuf;
+	tWord*					 depthBuf;
 };

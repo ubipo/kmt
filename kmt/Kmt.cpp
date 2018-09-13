@@ -1,4 +1,4 @@
-// Kmt.cpp
+// Kmt.cpp - Logic for Kinect Mouse Tracker
 
 // KinectWrapper.cpp
 #include "Kmt.h"
@@ -23,15 +23,34 @@ using ms = chrono::milliseconds;
 using matSource = Mat(Kmt::*)();
 using matOutput = void(Kmt::*)(Mat(Kmt::*)());
 
-Kmt::Kmt() {
+
+Kmt::Kmt() {}
+
+void Kmt::setBg(Mat _bg) {
+	bg = _bg;
 }
 
+/**
+ * Blurs (low-pass filters) a frame.
+ *
+ * args: frame
+ *		 blurSize: size of kernel in pixels
+ * returns: processed frame
+ */
 Mat Kmt::blur(Mat frame, int blurSize) {
 	Mat temp = Mat();
 	cv::blur(frame, temp, Size(blurSize, blurSize));
 	return temp;
 }
 
+/**
+ * Takes absolute diff with background and thresholds frame.
+ *
+ * pre: setBg() has been called
+ * args: frame
+ *		 thresholdValue: value for boolean threshold
+ * returns: processed frame
+ */
 Mat Kmt::diffThreshold(Mat frame, int thresholdValue) {
 	Mat temp = Mat();
 	cv::absdiff(frame, bg, temp);
@@ -40,6 +59,18 @@ Mat Kmt::diffThreshold(Mat frame, int thresholdValue) {
 	return frame;
 }
 
+/**
+ * Finds and marks position of the mouse in the given frame
+ * if no sufficiently large object is found the last known
+ * position is returned.
+ *
+ * args: frame
+ *		 minimumSize: objects under this size (in px) will be ignored
+ * returns: findPosOutput
+ *			.frame: marked frame
+ *			.x:		x-pos
+ *			.y:		y-pos
+ */
 findPosOutput Kmt::findPos(Mat frame, float minimumSize) {
 	vector<vector<Point>> contours;
 	vector<Vec4i> hierarchy;
@@ -77,50 +108,6 @@ findPosOutput Kmt::findPos(Mat frame, float minimumSize) {
 	return output;
 }
 
-void Kmt::setBg(Mat _bg) {
-	bg = _bg;
-}
-
-tByte byteClamp(int a) {
-	return a < 0 ? 0 : a > 255 ? 255 : a;
-}
-
-Mat Kmt::colorFrameBufToGrayscaleMat(tByte* buf) {
-	Mat yuv(1080, 1920, CV_8UC2, buf); // YUV color space
-
-	Mat bgr = Mat();
-	bgr.create(1080, 1920, CV_8UC3);
-
-	cvtColor(yuv, bgr, CV_YUV2BGR_YUYV);
-
-	Mat channels[3];
-	split(bgr, channels);
-	channels[1] = Mat::zeros(1080, 1920, CV_8UC1);
-	merge(channels, 3, bgr);
-
-	Mat gray = Mat();
-	cvtColor(bgr, gray, CV_BGR2GRAY);
-
-	return gray;
-}
-
-Mat Kmt::depthBufToGrayscaleMat(tWord* buf) {
-	short rangeMin = 650;
-	short rangeDelta = 135;
-
-	Mat mat = *new Mat();
-	mat.create(424, 512, CV_8U);
-	tByte* matPtr = mat.ptr<tByte>(0);
-
-	for (int i = 0; i < 512 * 424; i++) {
-		tWord depth = *buf++;
-		tByte intensity = (depth >= rangeMin) && (depth < rangeMin + rangeDelta) ? depth - rangeMin : 0;
-		matPtr[i] = intensity;
-	}
-
-	return mat;
-}
-
 Mat Kmt::getDepthMat() {
 	bool updated = kinect.updateMultiFrame(frameUpdateTimeout);
 	if (!updated) {
@@ -153,4 +140,54 @@ Mat Kmt::getColorMat() {
 	Mat cropped = colorMat(frame);
 
 	return cropped;
+}
+
+/**
+ * Converts the given color frame buffer (of size
+ * 1920 * 1080 * 3) to a bgr Mat frame.
+ *
+ * args: buffer
+ * returns: color frame
+ */
+Mat Kmt::colorFrameBufToGrayscaleMat(tByte* buf) {
+	Mat yuv(1080, 1920, CV_8UC2, buf); // YUV color space
+
+	Mat bgr = Mat();
+	bgr.create(1080, 1920, CV_8UC3);
+
+	cvtColor(yuv, bgr, CV_YUV2BGR_YUYV);
+
+	Mat channels[3];
+	split(bgr, channels);
+	channels[1] = Mat::zeros(1080, 1920, CV_8UC1);
+	merge(channels, 3, bgr);
+
+	Mat gray = Mat();
+	cvtColor(bgr, gray, CV_BGR2GRAY);
+
+	return gray;
+}
+
+/**
+ * Converts the given depth frame buffer (of size
+ * 650 * 135) to a depth Mat frame.
+ *
+ * args: buffer
+ * returns: depth frame
+ */
+Mat Kmt::depthBufToGrayscaleMat(tWord* buf) {
+	short rangeMin = 650;
+	short rangeDelta = 135;
+
+	Mat mat = *new Mat();
+	mat.create(424, 512, CV_8U);
+	tByte* matPtr = mat.ptr<tByte>(0);
+
+	for (int i = 0; i < 512 * 424; i++) {
+		tWord depth = *buf++;
+		tByte intensity = (depth >= rangeMin) && (depth < rangeMin + rangeDelta) ? depth - rangeMin : 0;
+		matPtr[i] = intensity;
+	}
+
+	return mat;
 }

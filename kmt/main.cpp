@@ -1,3 +1,14 @@
+// main.cpp - kmt (kinect mouse tracker) CLI
+
+/**
+ * kmt - Kinect mouse tracker
+ *
+ * Designed to track a mouse using Microsoft kinect's
+ * depth or color sensor and opencv's image processing.
+ *
+ * Licensed under the MIT License included in the source
+ */
+
 // Std
 #include <iostream>
 #include <string>
@@ -42,6 +53,10 @@ void kmt(bool colorMode, bool rawMode, int blurSize, int threshold, float minimu
 // Global verbose logger
 VerboseLog verbose;
 
+// Videowriter ptr, to gracefully close on exit
+unique_ptr<VideoWriter> pVideo;
+
+
 int main(int argc, char** argv) {
 	signal(SIGINT, signalHandler);
 
@@ -74,18 +89,18 @@ int main(int argc, char** argv) {
 	try {
 		cxxopts::ParseResult args = argParser.parse(argc, argv);
 
-		// extract args
+		// Extract args
 		if (args.count("help")) {
 			cout << helpStr << endl;
-			exit(0);
+			return 0;
 		}
-		verbose.enabled = args.count("verbose");
-		colorMode = args.count("color"); // color mode
+		verbose.enabled = args.count("verbose"); // Verbose mode
+		colorMode = args.count("color"); // Color mode
 		rawMode = args.count("raw"); // Raw mode
 		blurSize = args["blur"].as<int>(); // Blur size
 		thresholdValue = args["threshold"].as<int>(); // Threshold value
 		minimumSize = args["minimum"].as<float>(); // Minimum size
-		triggerMode = args.count("trigger"); // trigger mode
+		triggerMode = args.count("trigger"); // Trigger mode
 		overwrite = args.count("overwrite"); // Overwrite mode
 
 		streamOutput = videoOutput = false; // Output mode(s)
@@ -118,6 +133,7 @@ int main(int argc, char** argv) {
 
 	verbose("Verbose logging enabled");
 
+	// Run kmt, quit on error
 	try {
 		kmt(colorMode, rawMode, blurSize, thresholdValue, minimumSize, triggerMode, overwrite, streamOutput, videoOutput, dataFileName, videoFileName, fps);
 	} catch (exception& err) {
@@ -131,19 +147,16 @@ int main(int argc, char** argv) {
 		return 1;
 	}
 
-	return EXIT_SUCCESS;
+	return 0;
 }
 
-bool fileExists(string file) {
-	struct stat buffer;
-	return stat(file.c_str(), &buffer) == 0;
-}
-
-VideoWriter video;
-
+/**
+ * Runs kmt with the given arguments.
+ *
+ */
 void kmt(bool colorMode, bool rawMode, int blurSize, int thresholdValue, float minimumSize, bool triggerMode, bool overwrite, bool streamOutput, bool videoOutput, string dataFileName, string videoFileName, int fps) {	
 	// Init kmt
-	std::unique_ptr<Kmt> pKmt;
+	unique_ptr<Kmt> pKmt;
 	try {
 		pKmt.reset(new Kmt());
 	} catch (NoDefaultKinectException) {
@@ -162,7 +175,7 @@ void kmt(bool colorMode, bool rawMode, int blurSize, int thresholdValue, float m
 	if (!rawMode) {
 		Mat bg;
 		bg = imread("./bg.bmp", IMREAD_GRAYSCALE);
-		if (bg.data != NULL) {
+		if (bg.data != nullptr) {
 			pKmt->setBg(bg);
 		}
 		else {
@@ -194,7 +207,7 @@ void kmt(bool colorMode, bool rawMode, int blurSize, int thresholdValue, float m
 		}
 		// Get test frame
 		Mat frame = (*pKmt.*source)();
-		video = VideoWriter(videoFileName, CV_FOURCC('M', 'J', 'P', 'G'), fps, Size(frame.cols, frame.rows));
+		pVideo.reset(new VideoWriter(videoFileName, CV_FOURCC('M', 'J', 'P', 'G'), fps, Size(frame.cols, frame.rows)));
 	}
 
 	// Initialise stream
@@ -211,9 +224,12 @@ void kmt(bool colorMode, bool rawMode, int blurSize, int thresholdValue, float m
 
 	// Stream
 	verbose("Starting stream...");
+	unsigned int t;
 	chrono::time_point<Time> tStart, tFrameStart, tFrameCap, tFrameEnd;
 	tStart = Time::now();
-	dataOut << "0,0,0\n";
+	if (!rawMode) {
+		dataOut << "0,0,0\n";
+	}
 	while (true) {
 		if (waitKey(1) >= 0) {
 			break;
@@ -230,7 +246,9 @@ void kmt(bool colorMode, bool rawMode, int blurSize, int thresholdValue, float m
 			continue;
 		}
 
+		// Calc time of capture
 		tFrameCap = Time::now();
+		t = toMs(tFrameCap - tStart);
 
 		// Process
 		findPosOutput posOutput;
@@ -242,26 +260,23 @@ void kmt(bool colorMode, bool rawMode, int blurSize, int thresholdValue, float m
 
 		// Output
 		if (streamOutput) imshow(streamWindowName, frame);
-		if (videoOutput) {
-			video.write(frame);
-		}
-		if (!rawMode) {
-			unsigned int t = toMs(tFrameCap - tStart);
-			dataOut << t << "," << posOutput.x << "," << posOutput.y << "\n";
-		}
+		if (videoOutput) pVideo->write(frame);
+		if (!rawMode) dataOut << t << "," << posOutput.x << "," << posOutput.y << "\n";
 
+		// Print fps
 		tFrameEnd = Time::now();
 		unsigned int frameTime = toMs(tFrameEnd - tFrameStart);
-		//if (frameTime < frameTimeTarget) {
-		//	int delta = frameTimeTarget - frameTime;
-		//}
 		int fps = 1000 / frameTime;
 		cout << "fps: " << fps << "               " << '\r' << flush;
 	}
 }
 
 void signalHandler(int signum) {
-	video.release();
 	cout << "Exiting..." << endl;
-	exit(signum);
+
+	if (pVideo != nullptr) {
+		pVideo.release();
+	}
+
+	exit(0);
 }

@@ -1,1 +1,5 @@
+# Visual studio prefs & builds
 .vs/
+
+# Visual studio logs
+*.tlog

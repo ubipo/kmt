@@ -23,3 +23,11 @@ void VerboseLog::operator()(string msg) {
 	if (enabled) cout << msg << endl;
 }
 
+tByte byteClamp(int a) {
+	return a < 0 ? 0 : a > 255 ? 255 : a;
+}
+
+bool fileExists(string file) {
+	struct stat buffer;
+	return stat(file.c_str(), &buffer) == 0;
+}

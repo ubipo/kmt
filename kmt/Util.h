@@ -12,14 +12,18 @@ using ms = chrono::milliseconds;
 
 unsigned int toMs(chrono::duration<float> d);
 
+tByte byteClamp(int a);
+
+bool fileExists(string file);
+
 struct VerboseLog {
 	bool enabled = false;
 	void operator()(string msg);
 };
 
 template<class Interface> inline void SafeReleaseInterface(Interface *& pInterfaceToRelease) {
-	if (pInterfaceToRelease != NULL) {
+	if (pInterfaceToRelease != nullptr) {
 		pInterfaceToRelease->Release();
-		pInterfaceToRelease = NULL;
+		pInterfaceToRelease = nullptr;
 	}
 };
