@@ -1,10 +1,10 @@
 // main.cpp - kmt (kinect mouse tracker) CLI
 
 /**
- * kmt - Kinect mouse tracker
+ * kmt - Kinect Mouse Tracker
  *
- * Designed to track a mouse using Microsoft kinect's
- * depth or color sensor and opencv's image processing.
+ * Tool to track a mouse using Microsoft kinect
+ * depth or color streams and opencv image processing.
  *
  * Licensed under the MIT License included in the source
  */
